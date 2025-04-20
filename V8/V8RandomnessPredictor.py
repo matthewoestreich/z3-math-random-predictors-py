@@ -49,13 +49,15 @@ class V8RandomnessPredictor:
     # Performs the typical XorShift128p but in reverse.
     def __xorshift128p_concrete_backwards(self):
         """
-        Since V8 gives us random numbers by popping them off of their cache.
-        This is why we have to reverse `sequence` to `__internal_sequence = sequence[::-1]` in the constructor.
-        In order to move forward down the chain, we have to perform our concrete XOR backwards. If we performed
-        our XOR forwards, we would technically be moving backwards in time, and therefore giving the caller numbers
-        they already have.
+        - V8 gives us random numbers by popping them off of their cache.
+        - This is why we have to reverse `sequence` to `__internal_sequence = sequence[::-1]` in the constructor.
+        - Essentially, they give us random numbers in LIFO order, so we need to process them in reverse (like a simulated FIFO).
+        
+        - In order to move forward down the chain, we have to perform our concrete XOR backwards. If we performed
+        our XOR forwards, we would technically be moving backwards in time, and therefore return numbers to the caller
+        that they already have.
         """
-        # Must set resullt here, otherwise we skip a step
+        # Must set resullt here, otherwise we skip numbers by 1 step
         result = self.__c_state0
         ps1 = self.__c_state0
         ps0 = self.__c_state1 ^ (self.__c_state0 >> 26)

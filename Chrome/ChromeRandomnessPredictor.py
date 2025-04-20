@@ -1,10 +1,11 @@
+import struct
 from z3 import *
 from typing import List, Optional
 
 
-class FirefoxRandomnessPredictor:
+class ChromeRandomnessPredictor:
     def __init__(self, sequence: List[float]):
-        self.sequence = sequence
+        self.sequence = sequence[::-1]
         self.__mask = 0xFFFFFFFFFFFFFFFF
         self.__concrete_state0, self.__concrete_state1 = [None, None]
         self.__se_state0, self.__se_state1 = BitVecs("se_state0 se_state1", 64)
@@ -15,7 +16,10 @@ class FirefoxRandomnessPredictor:
             recovered = self.__recover_mantissa(sequence[i])
             self.__xorshift128p_symbolic(recovered)
 
-        if self.__solver.check() != sat:
+        checked = self.__solver.check()
+        print(self.__solver.to_smt2())
+        if checked != sat:
+            print(f"Unable to recover internal state! {checked}")
             return None
 
         model = self.__solver.model()
@@ -38,31 +42,35 @@ class FirefoxRandomnessPredictor:
         out = self.__xorshift128p_concrete()
         return self.__to_double(out)
 
-    def __xorshift128p_concrete(self) -> int:
-        s1 = self.__concrete_state0 & self.__mask  # state0 & self.__mask
-        s0 = self.__concrete_state1 & self.__mask  # state1 & self.__mask
+    def __xorshift128p_concrete(self):
+        s1 = self.__concrete_state0
+        s0 = self.__concrete_state1
+        self.__concrete_state0 = s0
         s1 ^= (s1 << 23) & self.__mask
         s1 ^= (s1 >> 17) & self.__mask
-        s1 ^= s0 & self.__mask
+        s1 ^= s0
         s1 ^= (s0 >> 26) & self.__mask
-        self.__concrete_state0 = self.__concrete_state1 & self.__mask
-        self.__concrete_state1 = s1 & self.__mask
-        return (self.__concrete_state0 + self.__concrete_state1) & self.__mask
+        self.__concrete_state1 = s1
+        return (s0 + s1) & self.__mask
 
     def __xorshift128p_symbolic(self, val: float) -> None:
-        s1 = self.__se_state0  # sym_state0
-        s0 = self.__se_state1  # sym_state1
+        s1 = self.__se_state0
+        s0 = self.__se_state1
+        t = s1
         s1 ^= s1 << 23
         s1 ^= LShR(s1, 17)
         s1 ^= s0
         s1 ^= LShR(s0, 26)
-        self.__se_state0 = self.__se_state1  # sym_state0 = sym_state1
-        self.__se_state1 = s1  # sym_state1 = s1
-        calc = self.__se_state0 + self.__se_state1  # calc = sym_state0 + sym_state1
-        self.__solver.add((calc & 0x1FFFFFFFFFFFFF) == int(val))
+        result = (s0 + s1) & self.__mask
+        self.__se_state0 = s0
+        self.__se_state1 = s1
+        self.__solver.add(LShR(result, 12) == int(val))
 
     def __to_double(self, val: int):
-        return float(val & 0x1FFFFFFFFFFFFF) / (0x1 << 53)
+        double_bits = (val >> 12) | 0x3FF0000000000000
+        return struct.unpack("d", struct.pack("<Q", double_bits))[0] - 1
 
     def __recover_mantissa(self, double: float) -> float:
-        return double * (0x1 << 53)
+        float64 = struct.pack("d", double + 1)
+        u_long_long_64 = struct.unpack("<Q", float64)[0]
+        return u_long_long_64 & (self.__mask >> 12)

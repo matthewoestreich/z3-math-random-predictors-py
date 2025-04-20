@@ -12,8 +12,9 @@ class FirefoxRandomnessPredictor:
         self.__solver = Solver()
 
         for i in range(len(sequence)):
-            recovered = self.__recover_mantissa(sequence[i])
-            self.__xorshift128p_symbolic(recovered)
+            mantissa = self.__recover_mantissa(sequence[i])
+            self.__xorshift128p_symbolic()
+            self.__solver.add(((self.__se_state0 + self.__se_state1) & 0x1FFFFFFFFFFFFF) == int(mantissa))
 
         if self.__solver.check() != sat:
             return None
@@ -45,11 +46,11 @@ class FirefoxRandomnessPredictor:
         s1 ^= (s1 >> 17) & self.__mask
         s1 ^= s0 & self.__mask
         s1 ^= (s0 >> 26) & self.__mask
-        self.__concrete_state0 = self.__concrete_state1 & self.__mask
+        self.__concrete_state0 = s0 & self.__mask
         self.__concrete_state1 = s1 & self.__mask
         return (self.__concrete_state0 + self.__concrete_state1) & self.__mask
 
-    def __xorshift128p_symbolic(self, val: float) -> None:
+    def __xorshift128p_symbolic(self) -> None:
         s1 = self.__se_state0  # sym_state0
         s0 = self.__se_state1  # sym_state1
         s1 ^= s1 << 23
@@ -58,8 +59,6 @@ class FirefoxRandomnessPredictor:
         s1 ^= LShR(s0, 26)
         self.__se_state0 = self.__se_state1  # sym_state0 = sym_state1
         self.__se_state1 = s1  # sym_state1 = s1
-        calc = self.__se_state0 + self.__se_state1  # calc = sym_state0 + sym_state1
-        self.__solver.add((calc & 0x1FFFFFFFFFFFFF) == int(val))
 
     def __to_double(self, val: int):
         return float(val & 0x1FFFFFFFFFFFFF) / (0x1 << 53)

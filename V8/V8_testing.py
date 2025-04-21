@@ -1,3 +1,5 @@
+from V8.V8RandomnessPredictor import V8RandomnessPredictor
+
 sequence_og = [
     0.552974198778651,
     0.6091405699404759,
@@ -14,7 +16,7 @@ expected_og = [
     0.5362054737043922,
 ]
 
-sequence = [
+sequence_b = [
     0.5444405645692001,
     0.9203027285129253,
     0.0880920246518424,
@@ -22,7 +24,7 @@ sequence = [
     0.06183370879928152,
 ]
 
-expected = [
+expected_b = [
     0.3817506775921966,
     0.796686249606257,
     0.9976624647084931,
@@ -30,15 +32,18 @@ expected = [
     0.7825669445360215,
 ]
 
+
 def testV8():
-    p = V8RandomnessPredictor(sequence)
-    for _, expect in enumerate(expected):
+    isOverallSuccess = True
+    p = V8RandomnessPredictor(sequence_b)
+    for _, expect in enumerate(expected_b):
         predicted = p.predict_next()
         correct = predicted == expect
+        if correct == False:
+            isOverallSuccess = False
         print(f"Correct? {correct}\t| predicted={predicted}\t| expected={expect}")
-        
+    return isOverallSuccess
+
+
 if __name__ == "__main__":
-    from V8RandomnessPredictor import V8RandomnessPredictor
     testV8()
-else:
-    from V8.V8RandomnessPredictor import V8RandomnessPredictor

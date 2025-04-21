@@ -52,7 +52,7 @@ class V8RandomnessPredictor:
         - V8 gives us random numbers by popping them off of their cache.
         - This is why we have to reverse `sequence` to `__internal_sequence = sequence[::-1]` in the constructor.
         - Essentially, they give us random numbers in LIFO order, so we need to process them in reverse (like a simulated FIFO).
-        
+
         - In order to move forward down the chain, we have to perform our concrete XOR backwards. If we performed
         our XOR forwards, we would technically be moving backwards in time, and therefore return numbers to the caller
         that they already have.

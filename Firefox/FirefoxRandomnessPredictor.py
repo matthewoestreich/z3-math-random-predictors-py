@@ -14,7 +14,10 @@ class FirefoxRandomnessPredictor:
         for i in range(len(sequence)):
             mantissa = self.__recover_mantissa(sequence[i])
             self.__xorshift128p_symbolic()
-            self.__solver.add(((self.__se_state0 + self.__se_state1) & 0x1FFFFFFFFFFFFF) == int(mantissa))
+            self.__solver.add(
+                ((self.__se_state0 + self.__se_state1) & 0x1FFFFFFFFFFFFF)
+                == int(mantissa)
+            )
 
         if self.__solver.check() != sat:
             return None

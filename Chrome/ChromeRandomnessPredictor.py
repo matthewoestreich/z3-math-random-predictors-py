@@ -2,83 +2,70 @@ import struct
 from z3 import *
 from typing import List, Optional
 
-"""
-
-
-THIS IS A WORK IN PROGRESS STILL!!
-
-
-"""
-
 
 class ChromeRandomnessPredictor:
     def __init__(self, sequence: List[float]):
-        self.sequence = sequence[::-1]
+        self.sequence = sequence
+        self.__c_state0, self.__c_state1 = None, None
+        self.__internalSequence = sequence[::-1]
         self.__mask = 0xFFFFFFFFFFFFFFFF
-        self.__concrete_state0, self.__concrete_state1 = [None, None]
-        self.__se_state0, self.__se_state1 = BitVecs("se_state0 se_state1", 64)
+        self.__solver = z3.Solver()
+        self.__se_state0, self.__se_state1 = z3.BitVecs("se_state0 se_state1", 64)
         self.__s0_ref, self.__s1_ref = self.__se_state0, self.__se_state1
-        self.__solver = Solver()
 
-        for i in range(len(sequence)):
-            recovered = self.__recover_mantissa(sequence[i])
-            self.__xorshift128p_symbolic(recovered)
+        for i in range(len(self.__internalSequence)):
+            self.__xorshift128p_symbolic()
+            mantissa = self.__recover_mantissa(self.__internalSequence[i])
+            self.__solver.add(mantissa == LShR(self.__se_state0, 11))
 
-        checked = self.__solver.check()
-        print(self.__solver.to_smt2())
-        if checked != sat:
-            print(f"Unable to recover internal state! {checked}")
+        if self.__solver.check() != z3.sat:
             return None
 
         model = self.__solver.model()
-        self.__concrete_state0 = model[self.__s0_ref].as_long()
-        self.__concrete_state1 = model[self.__s1_ref].as_long()
-
-        # We have to get our concrete state up to the same point as our symbolic state,
-        # therefore, we discard as many "predict_next()" calls as we have len(sequence).
-        # Otherwise, we would return random numbers to the caller that they already have.
-        # Now, when we return from predict_next() we get the actual next
-        for i in range(len(sequence)):
-            self.__xorshift128p_concrete()
+        self.__c_state0 = model[self.__s0_ref].as_long()
+        self.__c_state1 = model[self.__s1_ref].as_long()
 
     def predict_next(self) -> Optional[float]:
-        """
-        Predict the next random number.
-        """
-        if self.__concrete_state0 is None or self.__concrete_state1 is None:
+        if self.__c_state0 is None or self.__c_state1 is None:
             return None
-        out = self.__xorshift128p_concrete()
+        out = self.__xorshift128p_concrete_backwards()
         return self.__to_double(out)
 
-    def __xorshift128p_concrete(self):
-        s1 = self.__concrete_state0
-        s0 = self.__concrete_state1
-        self.__concrete_state0 = s0
-        s1 ^= (s1 << 23) & self.__mask
-        s1 ^= (s1 >> 17) & self.__mask
-        s1 ^= s0
-        s1 ^= (s0 >> 26) & self.__mask
-        self.__concrete_state1 = s1
-        return (s0 + s1) & self.__mask
+    def __xorshift128p_symbolic(self) -> None:
+        se_s1 = self.__se_state0
+        se_s0 = self.__se_state1
+        self.__se_state0 = se_s0
+        se_s1 ^= se_s1 << 23
+        se_s1 ^= z3.LShR(se_s1, 17)  # Logical shift instead of Arthmetric shift
+        se_s1 ^= se_s0
+        se_s1 ^= z3.LShR(se_s0, 26)
+        self.__se_state1 = se_s1
 
-    def __xorshift128p_symbolic(self, val: float) -> None:
-        s1 = self.__se_state0
-        s0 = self.__se_state1
-        t = s1
-        s1 ^= s1 << 23
-        s1 ^= LShR(s1, 17)
-        s1 ^= s0
-        s1 ^= LShR(s0, 26)
-        result = (s0 + s1) & self.__mask
-        self.__se_state0 = s0
-        self.__se_state1 = s1
-        self.__solver.add(LShR(result, 12) == int(val))
+    # Performs the typical XorShift128p but in reverse.
+    def __xorshift128p_concrete_backwards(self):
+        """
+        - V8 gives us random numbers by popping them off of their cache.
+        - This is why we have to reverse `sequence` to `__internal_sequence = sequence[::-1]` in the constructor.
+        - Essentially, they give us random numbers in LIFO order, so we need to process them in reverse (like a simulated FIFO).
 
-    def __to_double(self, val: int):
-        double_bits = (val >> 12) | 0x3FF0000000000000
-        return struct.unpack("d", struct.pack("<Q", double_bits))[0] - 1
+        - In order to move forward down the chain, we have to perform our concrete XOR backwards. If we performed
+        our XOR forwards, we would technically be moving backwards in time, and therefore return numbers to the caller
+        that they already have.
+        """
+        # Must set resullt here, otherwise we skip numbers by 1 step
+        result = self.__c_state0
+        ps1 = self.__c_state0
+        ps0 = self.__c_state1 ^ (self.__c_state0 >> 26)
+        ps0 = ps0 ^ self.__c_state0
+        # Performs the normal shift 17 but in reverse.
+        ps0 = ps0 ^ (ps0 >> 17) ^ (ps0 >> 34) ^ (ps0 >> 51) & self.__mask
+        # Performs the normal shift 23 bbut in reverse.
+        ps0 = (ps0 ^ (ps0 << 23) ^ (ps0 << 46)) & self.__mask
+        self.__c_state0, self.__c_state1 = ps0, ps1
+        return result
 
-    def __recover_mantissa(self, double: float) -> float:
-        float64 = struct.pack("d", double + 1)
-        u_long_long_64 = struct.unpack("<Q", float64)[0]
-        return u_long_long_64 & (self.__mask >> 12)
+    def __recover_mantissa(self, double: float) -> int:
+        return double * (0x1 << 53)
+
+    def __to_double(self, val: int) -> float:
+        return (val >> 11) / (2**53)

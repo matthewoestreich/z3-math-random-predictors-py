@@ -1,30 +1,94 @@
-sequence = [
-    0.11590966799438174,
-    0.8827994404701779,
-    0.931965836684493,
-    0.053910018249548,
-    0.10002302879586344,
+from Chrome.ChromeRandomnessPredictor import ChromeRandomnessPredictor
+
+sequence_a = [
+    0.022300007007625022,
+    0.5454345964557109,
+    0.45404922690108307,
+    0.04417013601744035,
+    0.35199524715115105,
+    0.6148837563738035,
+    0.878040928252517,
+    0.017092523074764054,
+    0.4537357765058502,
+    0.5226616810636244,
+    0.3639925330858578,
+    0.2525940650554609,
+    0.42859547596342185,
+    0.9162034725854283,
+    0.6625529744950467,
+    0.4057810478556705,
+    0.17543588699013635,
+    0.550377104398191,
+    0.8903574067571249,
+    0.3096221835742551,
 ]
 
-expected = [
-    0.4107857334881625,
-    0.9678947364255936,
-    0.5656948155949282,
-    0.9616116961598181,
-    0.5745843601953992,
+expected_a = [
+    0.7645925800626426,
+    0.8819044144966741,
+    0.2621525979563284,
+    0.5758443110149402,
+    0.6783208240829045,
+    0.12861503573381516,
+    0.6042207590743677,
+    0.033811890937417655,
+    0.39337384269628917,
+    0.6018609954052853,
 ]
+
+sequence_b = [
+    0.32096095967729477,
+    0.3940071672626849,
+    0.3363374923027722,
+    0.7518761096243554,
+    0.44201420586496387,
+]
+
+expected_b = [
+    0.8199006769436774,
+    0.6250240806313154,
+    0.9101975676132608,
+    0.5889203398264599,
+    0.5571161440436232,
+    0.9619184649129092,
+    0.8385620929536599,
+    0.3822042053588621,
+    0.5040552869863579,
+    0.12014019399083042,
+    0.44332968383610927,
+    0.37830079319230936,
+    0.542449069899975,
+    0.0659240460476268,
+    0.9589494984837686,
+    0.007621633090565627,
+    0.14119301022498787,
+    0.9964718645470699,
+    0.14527130036353442,
+    0.6260597083849548,
+    0.86354903522581,
+    0.7245123107811886,
+    0.6565323828155891,
+    0.3636039851663503,
+    0.5799453712253447,
+]
+
+ACTIVE = {
+    "sequence": sequence_b,
+    "expected": expected_b,
+}
+
 
 def testChrome():
-    print("- CHROME IS STILL IN PROGRESS -")
-    return
-    pred = ChromeRandomnessPredictor(sequence)
-    for i in range(len(expected)):
+    isOverallSuccess = True
+    pred = ChromeRandomnessPredictor(ACTIVE["sequence"])
+    for _, expect in enumerate(ACTIVE["expected"]):
         prediction = pred.predict_next()
-        correct = prediction == expected[i]
-        print(f"Correct? {correct}\t| Predicted={prediction}\t| Expected={expected[i]}")
-        
+        correct = prediction == expect
+        if correct == False:
+            isOverallSuccess = False
+        print(f"Correct? {correct}\t|\tPredicted={prediction}\t|\tExpected={expect}")
+    return isOverallSuccess
+
+
 if __name__ == "__main__":
-    from ChromeRandomnessPredictor import ChromeRandomnessPredictor
     testChrome()
-else:
-    from Chrome.ChromeRandomnessPredictor import ChromeRandomnessPredictor

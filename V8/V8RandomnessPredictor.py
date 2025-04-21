@@ -31,11 +31,6 @@ class V8RandomnessPredictor:
         out = self.__xorshift128p_concrete_backwards()
         return self.__to_double(out)
 
-    def __to_double(self, val: int) -> float:
-        u_long_long_64 = (val >> 12) | 0x3FF0000000000000
-        float_64 = struct.pack("<Q", u_long_long_64)
-        return (struct.unpack("d", float_64)[0]) - 1
-
     def __xorshift128p_symbolic(self) -> None:
         se_s1 = self.__se_state0
         se_s0 = self.__se_state1
@@ -47,7 +42,7 @@ class V8RandomnessPredictor:
         self.__se_state1 = se_s1
 
     # Performs the typical XorShift128p but in reverse.
-    def __xorshift128p_concrete_backwards(self):
+    def __xorshift128p_concrete_backwards(self) -> int:
         """
         - V8 gives us random numbers by popping them off of their cache.
         - This is why we have to reverse `sequence` to `__internal_sequence = sequence[::-1]` in the constructor.
@@ -69,7 +64,12 @@ class V8RandomnessPredictor:
         self.__c_state0, self.__c_state1 = ps0, ps1
         return result
 
-    def __recover_mantissa(self, double: float) -> float:
+    def __recover_mantissa(self, double: float) -> int:
         float_64 = struct.pack("d", double)
         u_long_long_64 = struct.unpack("<Q", float_64)[0]
         return u_long_long_64 & ((1 << 52) - 1)
+
+    def __to_double(self, val: int) -> float:
+        u_long_long_64 = (val >> 12) | 0x3FF0000000000000
+        float_64 = struct.pack("<Q", u_long_long_64)
+        return (struct.unpack("d", float_64)[0]) - 1

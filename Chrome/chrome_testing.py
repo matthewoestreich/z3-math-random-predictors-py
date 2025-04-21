@@ -1,5 +1,11 @@
 from Chrome.ChromeRandomnessPredictor import ChromeRandomnessPredictor
 
+"""
+All numbers generated via Chrome devtools console.
+"""
+
+## --------------------------------------------------------
+
 sequence_a = [
     0.022300007007625022,
     0.5454345964557109,
@@ -35,6 +41,8 @@ expected_a = [
     0.39337384269628917,
     0.6018609954052853,
 ]
+
+## --------------------------------------------------------
 
 sequence_b = [
     0.32096095967729477,
@@ -72,6 +80,8 @@ expected_b = [
     0.5799453712253447,
 ]
 
+## --------------------------------------------------------
+
 ACTIVE = {
     "sequence": sequence_b,
     "expected": expected_b,
@@ -86,7 +96,7 @@ def testChrome():
         correct = prediction == expect
         if correct == False:
             isOverallSuccess = False
-        print(f"Correct? {correct}\t|\tPredicted={prediction}\t|\tExpected={expect}")
+        print(f"correct? {correct}\t|\tpredicted={prediction}\t|\texpected={expect}")
     return isOverallSuccess
 
 

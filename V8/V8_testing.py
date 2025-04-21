@@ -1,5 +1,9 @@
 from V8.V8RandomnessPredictor import V8RandomnessPredictor
 
+"""
+All numbers generated in Node via REPL and script.
+"""
+
 sequence_og = [
     0.552974198778651,
     0.6091405699404759,
@@ -41,7 +45,7 @@ def testV8():
         correct = predicted == expect
         if correct == False:
             isOverallSuccess = False
-        print(f"Correct? {correct}\t| predicted={predicted}\t| expected={expect}")
+        print(f"correct? {correct}\t|\tpredicted={predicted}\t|\texpected={expect}")
     return isOverallSuccess
 
 
